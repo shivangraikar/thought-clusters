@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Thought Clusters - Discover Patterns in Your AI Conversations</title>
+    <!-- Favicon matching the logo -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%2306b6d4'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)'/><circle cx='50' cy='50' r='20' fill='%230a0a0f'/></svg>">
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -302,6 +304,15 @@
             <h3>Insights</h3>
             <div class="fun-facts" id="fun-facts"></div>
           </div>
+        </div>
+
+        <!-- WebLLM Cache Info (shown when Browser AI was used) -->
+        <div class="cache-info hidden" id="cache-info">
+          <span class="cache-info-icon">💾</span>
+          <span class="cache-info-text">
+            Browser AI model (~2GB) is cached for faster future use.
+            <button type="button" id="clear-cache-btn" class="clear-cache-btn">Clear cache</button>
+          </span>
         </div>
 
         <div class="results-layout">
