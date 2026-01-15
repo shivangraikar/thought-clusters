@@ -44,23 +44,109 @@
                 </p>
             </div>
 
-            <div class="upload-zone" id="upload-zone">
-                <div class="upload-content">
-                    <div class="upload-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                    </div>
-                    <div class="upload-text">
-                        <span class="upload-main">Drop your conversations.json here</span>
-                        <span class="upload-sub">or click to browse</span>
-                    </div>
-                    <input type="file" id="file-input" accept=".json" hidden>
+            <!-- Step 1: Analysis Mode Selector -->
+            <div class="setup-step" id="step-mode">
+                <div class="step-header">
+                    <span class="step-badge">Step 1</span>
+                    <h3>Choose Analysis Mode</h3>
                 </div>
-                <div class="upload-formats">
-                    Supports: ChatGPT export • Claude export
+                <div class="mode-options">
+                    <label class="mode-option active" data-mode="basic">
+                        <input type="radio" name="analysis-mode" value="basic" checked>
+                        <div class="mode-card">
+                            <div class="mode-icon">⚡</div>
+                            <div class="mode-info">
+                                <span class="mode-name">Basic</span>
+                                <span class="mode-desc">Fast pattern analysis. Works everywhere.</span>
+                            </div>
+                            <div class="mode-badge default">Default</div>
+                        </div>
+                    </label>
+                    <label class="mode-option" data-mode="webllm">
+                        <input type="radio" name="analysis-mode" value="webllm">
+                        <div class="mode-card">
+                            <div class="mode-icon">🧠</div>
+                            <div class="mode-info">
+                                <span class="mode-name">Browser AI</span>
+                                <span class="mode-desc">Runs locally. Needs Chrome + good GPU. ~2GB download.</span>
+                            </div>
+                            <div class="mode-badge free">Free</div>
+                        </div>
+                    </label>
+                    <label class="mode-option" data-mode="api">
+                        <input type="radio" name="analysis-mode" value="api">
+                        <div class="mode-card">
+                            <div class="mode-icon">🔑</div>
+                            <div class="mode-info">
+                                <span class="mode-name">API Key</span>
+                                <span class="mode-desc">Best insights. Use your OpenAI or Anthropic key.</span>
+                            </div>
+                            <div class="mode-badge premium">Best</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Step 2: API Key Input (shown only for API mode) -->
+            <div class="setup-step hidden" id="step-apikey">
+                <div class="step-header">
+                    <span class="step-badge">Step 2</span>
+                    <h3>Enter Your API Key</h3>
+                </div>
+                <div class="api-key-input">
+                    <div class="api-provider-select">
+                        <label class="provider-option active">
+                            <input type="radio" name="api-provider" value="openai" checked>
+                            <span>OpenAI</span>
+                        </label>
+                        <label class="provider-option">
+                            <input type="radio" name="api-provider" value="anthropic">
+                            <span>Anthropic</span>
+                        </label>
+                    </div>
+                    <div class="api-input-wrapper">
+                        <input type="password" id="api-key" placeholder="sk-... or sk-ant-...">
+                        <button type="button" id="toggle-key-visibility" class="toggle-visibility">👁</button>
+                    </div>
+                    <div class="api-validation">
+                        <button type="button" id="validate-key-btn" class="validate-btn">Validate Key</button>
+                        <span class="validation-status" id="validation-status"></span>
+                    </div>
+                    <p class="api-hint">Your key is used only for this session and never stored.</p>
+                </div>
+            </div>
+
+            <!-- Step 3: Upload Zone (shown after mode confirmation) -->
+            <div class="setup-step" id="step-upload">
+                <div class="step-header">
+                    <span class="step-badge" id="upload-step-badge">Step 2</span>
+                    <h3>Upload Your Conversations</h3>
+                </div>
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-content">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                        </div>
+                        <div class="upload-text">
+                            <span class="upload-main">Drop your conversations.json here</span>
+                            <span class="upload-sub">or click to browse</span>
+                        </div>
+                        <input type="file" id="file-input" accept=".json" hidden>
+                    </div>
+                    <div class="upload-formats">
+                        Supports: ChatGPT export • Claude export
+                    </div>
+                </div>
+                <!-- Disabled overlay for API mode without valid key -->
+                <div class="upload-disabled-overlay hidden" id="upload-disabled">
+                    <div class="disabled-message">
+                        <span class="disabled-icon">🔒</span>
+                        <span>Please validate your API key first</span>
+                    </div>
                 </div>
             </div>
 
