@@ -249,8 +249,8 @@ body {
 /* Upload Zone */
 .upload-zone {
     width: 100%;
-    max-width: 560px;
-    margin-bottom: 48px;
+    max-width: 100%;
+    margin-bottom: 0;
 }
 
 .upload-content {
@@ -641,17 +641,18 @@ body {
 
 .upload-disabled-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(10, 10, 15, 0.8);
-    backdrop-filter: blur(4px);
+    top: -10px;
+    left: -16px;
+    right: -16px;
+    bottom: -10px;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(6px);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-xl);
     z-index: 10;
+    border: 1px solid var(--border-color);
 }
 
 .upload-disabled-overlay.hidden {
@@ -662,13 +663,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 15px;
+    text-align: center;
+    padding: 20px;
 }
 
 .disabled-icon {
-    font-size: 32px;
+    font-size: 40px;
+    opacity: 0.8;
 }
 
 /* Fallback Notice */
