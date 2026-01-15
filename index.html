@@ -3,80 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thought Clusters - Semantic Analysis of AI Conversations</title>
+    <title>Thought Clusters - Discover Patterns in Your AI Conversations</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <p class="label">SEMANTIC ANALYSIS</p>
-            <h1>Thought Clusters</h1>
-            <p class="subtitle">An analysis of my AI conversation history using embeddings, clustering, and LLM labeling</p>
-        </header>
-
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number" id="stat-messages">--</div>
-                <div class="stat-label">Total Prompts</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-clusters">--</div>
-                <div class="stat-label">Topic Clusters</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-chatgpt">--</div>
-                <div class="stat-label">ChatGPT</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-claude">--</div>
-                <div class="stat-label">Claude</div>
-            </div>
+    <div class="app">
+        <!-- Animated Background -->
+        <div class="bg-animation">
+            <div class="floating-orb orb-1"></div>
+            <div class="floating-orb orb-2"></div>
+            <div class="floating-orb orb-3"></div>
         </div>
 
-        <div class="methodology">
-            <strong>Methodology</strong> &mdash; User prompts embedded with OpenAI text-embedding-3-small,
-            clustered with K-means, visualized in 2D with UMAP, and labeled by GPT-4o-mini.
-        </div>
-
-        <div class="main-content">
-            <div class="viz-section">
-                <h3 class="section-title">EMBEDDING SPACE</h3>
-                <div class="viz-container">
-                    <div id="scatter-plot"></div>
-                    <div class="tooltip" id="tooltip"></div>
+        <!-- Upload Screen -->
+        <section id="upload-screen" class="screen active">
+            <nav class="top-nav">
+                <div class="logo">
+                    <span class="logo-icon">◉</span>
+                    <span class="logo-text">thought clusters</span>
                 </div>
-                <div id="legend" class="legend"></div>
+                <a href="https://github.com/shivangraikar/thought-clusters" target="_blank" class="github-link">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                </a>
+            </nav>
+
+            <div class="hero">
+                <div class="hero-badge">100% Browser-Based • No Data Stored</div>
+                <h1 class="hero-title">
+                    Discover patterns in your
+                    <span class="gradient-text">AI conversations</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Upload your ChatGPT or Claude export and watch as machine learning
+                    reveals the hidden themes in your questions.
+                </p>
             </div>
 
-            <div class="distribution-section">
-                <h3 class="section-title">TOPIC DISTRIBUTION</h3>
-                <div id="bar-chart"></div>
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-content">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <div class="upload-text">
+                        <span class="upload-main">Drop your conversations.json here</span>
+                        <span class="upload-sub">or click to browse</span>
+                    </div>
+                    <input type="file" id="file-input" accept=".json" hidden>
+                </div>
+                <div class="upload-formats">
+                    Supports: ChatGPT export • Claude export
+                </div>
             </div>
-        </div>
 
-        <div class="detail-panel" id="detail-panel">
-            <div class="detail-header">
-                <h3 id="detail-title">Select a point to view details</h3>
-                <button class="close-btn" id="close-detail">&times;</button>
+            <div class="how-it-works">
+                <h3>How it works</h3>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <strong>Export</strong>
+                            <span>Download your data from ChatGPT or Claude settings</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <strong>Upload</strong>
+                            <span>Drop your JSON file above</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <strong>Explore</strong>
+                            <span>Interact with your semantic map</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="detail-content">
-                <div class="detail-meta" id="detail-meta"></div>
-                <div class="detail-text" id="detail-text"></div>
-            </div>
-        </div>
 
-        <footer>
-            <p>Built with D3.js, OpenAI Embeddings, UMAP, and K-means clustering</p>
-            <p class="footer-link">
-                <a href="https://github.com/shivangraikar/thought-clusters" target="_blank">View on GitHub</a>
-            </p>
-        </footer>
+            <footer class="upload-footer">
+                <p>Your data never leaves your browser. Everything runs locally using WebML.</p>
+            </footer>
+        </section>
+
+        <!-- Processing Screen -->
+        <section id="processing-screen" class="screen">
+            <div class="processing-container">
+                <div class="processing-visual">
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-ring delay-1"></div>
+                    <div class="pulse-ring delay-2"></div>
+                    <div class="processing-core">
+                        <span class="core-icon">◉</span>
+                    </div>
+                </div>
+                <h2 class="processing-title">Analyzing your thoughts</h2>
+                <p class="processing-status" id="processing-status">Initializing...</p>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="processing-stats">
+                    <div class="proc-stat">
+                        <span class="proc-stat-value" id="proc-messages">0</span>
+                        <span class="proc-stat-label">messages found</span>
+                    </div>
+                    <div class="proc-stat">
+                        <span class="proc-stat-value" id="proc-embedded">0</span>
+                        <span class="proc-stat-label">embedded</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Screen -->
+        <section id="results-screen" class="screen">
+            <nav class="results-nav">
+                <div class="logo">
+                    <span class="logo-icon">◉</span>
+                    <span class="logo-text">thought clusters</span>
+                </div>
+                <div class="nav-stats">
+                    <div class="nav-stat">
+                        <span class="nav-stat-value" id="total-prompts">0</span>
+                        <span class="nav-stat-label">prompts</span>
+                    </div>
+                    <div class="nav-stat">
+                        <span class="nav-stat-value" id="total-clusters">0</span>
+                        <span class="nav-stat-label">clusters</span>
+                    </div>
+                </div>
+                <button class="reset-btn" id="reset-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                    New Analysis
+                </button>
+            </nav>
+
+            <div class="results-layout">
+                <aside class="sidebar">
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Topic Clusters</h3>
+                        <div class="cluster-list" id="cluster-list"></div>
+                    </div>
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Sources</h3>
+                        <div class="source-breakdown" id="source-breakdown"></div>
+                    </div>
+                </aside>
+
+                <main class="main-viz">
+                    <div class="viz-header">
+                        <h2>Semantic Space</h2>
+                        <p>Each point is a prompt. Distance = semantic similarity.</p>
+                    </div>
+                    <div class="scatter-container" id="scatter-container">
+                        <div id="scatter-plot"></div>
+                    </div>
+                    <div class="viz-controls">
+                        <button class="control-btn" id="zoom-in" title="Zoom In">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                            </svg>
+                        </button>
+                        <button class="control-btn" id="zoom-out" title="Zoom Out">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                <line x1="8" y1="11" x2="14" y2="11"/>
+                            </svg>
+                        </button>
+                        <button class="control-btn" id="zoom-reset" title="Reset View">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3.5 3.5L8 8M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </main>
+            </div>
+
+            <!-- Detail Modal -->
+            <div class="detail-modal" id="detail-modal">
+                <div class="modal-content">
+                    <button class="modal-close" id="modal-close">&times;</button>
+                    <div class="modal-cluster" id="modal-cluster"></div>
+                    <div class="modal-text" id="modal-text"></div>
+                    <div class="modal-meta" id="modal-meta"></div>
+                </div>
+            </div>
+
+            <!-- Tooltip -->
+            <div class="tooltip" id="tooltip"></div>
+        </section>
     </div>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
