@@ -739,7 +739,7 @@ function renderResults() {
     renderInsightsSummary();
     renderClusterList();
     renderSourceBreakdown();
-    createScatterPlot();
+    createBubbleChart();
     setupResultsEventListeners();
     showCacheInfoIfNeeded();
 }
@@ -894,76 +894,175 @@ function renderSourceBreakdown() {
     }
 }
 
-function createScatterPlot() {
+function createBubbleChart() {
     const container = document.getElementById('scatter-plot');
     container.innerHTML = '';
 
     const width = container.clientWidth;
     const height = container.clientHeight;
-    const margin = { top: 30, right: 30, bottom: 30, left: 30 };
 
-    const svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
-    const g = svg.append('g');
+    // Prepare bubble data from clusters
+    const bubbleData = state.clusters.map(cluster => {
+        const insight = state.insights.clusterInsights[cluster.id] || {};
+        return {
+            id: cluster.id,
+            label: cluster.label,
+            count: cluster.count,
+            dominantQType: insight.dominantQType || 'General',
+            dominantIntent: insight.dominantIntent || 'General',
+            avgComplexity: insight.avgComplexity || '0',
+            color: CONFIG.colors[cluster.id % CONFIG.colors.length]
+        };
+    });
 
-    const xExtent = d3.extent(state.points, d => d.x);
-    const yExtent = d3.extent(state.points, d => d.y);
-    const xPadding = (xExtent[1] - xExtent[0]) * 0.1;
-    const yPadding = (yExtent[1] - yExtent[0]) * 0.1;
+    // Create bubble pack layout
+    const pack = d3.pack()
+        .size([width - 20, height - 20])
+        .padding(12);
 
-    const xScale = d3.scaleLinear().domain([xExtent[0] - xPadding, xExtent[1] + xPadding]).range([margin.left, width - margin.right]);
-    const yScale = d3.scaleLinear().domain([yExtent[0] - yPadding, yExtent[1] + yPadding]).range([height - margin.bottom, margin.top]);
+    const root = d3.hierarchy({ children: bubbleData })
+        .sum(d => d.count || 1)
+        .sort((a, b) => b.value - a.value);
 
-    g.selectAll('.point')
-        .data(state.points)
+    pack(root);
+
+    const svg = d3.select(container)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+    // Add gradient definitions for each bubble
+    const defs = svg.append('defs');
+    bubbleData.forEach((d, i) => {
+        const gradient = defs.append('radialGradient')
+            .attr('id', `bubble-gradient-${i}`)
+            .attr('cx', '30%')
+            .attr('cy', '30%');
+        gradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', d.color)
+            .attr('stop-opacity', 0.9);
+        gradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', d.color)
+            .attr('stop-opacity', 0.6);
+    });
+
+    const g = svg.append('g')
+        .attr('transform', `translate(10, 10)`);
+
+    // Create bubble groups
+    const bubbles = g.selectAll('.bubble-group')
+        .data(root.leaves())
         .enter()
-        .append('circle')
-        .attr('class', 'point')
-        .attr('cx', d => xScale(d.x))
-        .attr('cy', d => yScale(d.y))
-        .attr('r', 6)
-        .attr('fill', d => CONFIG.colors[d.cluster % CONFIG.colors.length])
-        .attr('opacity', 0.75)
-        .on('mouseover', handleMouseOver)
-        .on('mouseout', handleMouseOut)
-        .on('click', handlePointClick);
+        .append('g')
+        .attr('class', 'bubble-group')
+        .attr('transform', d => `translate(${d.x}, ${d.y})`)
+        .style('cursor', 'pointer')
+        .on('mouseover', handleBubbleMouseOver)
+        .on('mouseout', handleBubbleMouseOut)
+        .on('click', handleBubbleClick);
 
-    state.zoom = d3.zoom().scaleExtent([0.5, 10]).on('zoom', (event) => g.attr('transform', event.transform));
-    svg.call(state.zoom);
+    // Add circles
+    bubbles.append('circle')
+        .attr('class', 'bubble')
+        .attr('r', d => d.r)
+        .attr('fill', (d, i) => `url(#bubble-gradient-${i})`)
+        .attr('stroke', d => d.data.color)
+        .attr('stroke-width', 2)
+        .attr('stroke-opacity', 0.5);
+
+    // Add labels (only for bubbles large enough)
+    bubbles.each(function(d) {
+        const group = d3.select(this);
+        const radius = d.r;
+
+        if (radius > 35) {
+            // Large bubble: show label and count
+            group.append('text')
+                .attr('class', 'bubble-label')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '-0.2em')
+                .attr('fill', 'white')
+                .attr('font-size', Math.min(radius / 4, 14) + 'px')
+                .attr('font-weight', '600')
+                .text(truncateText(d.data.label, Math.floor(radius / 5)));
+
+            group.append('text')
+                .attr('class', 'bubble-count')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '1.2em')
+                .attr('fill', 'rgba(255,255,255,0.8)')
+                .attr('font-size', Math.min(radius / 5, 12) + 'px')
+                .text(`${d.data.count} prompts`);
+        } else if (radius > 20) {
+            // Medium bubble: just show count
+            group.append('text')
+                .attr('class', 'bubble-count')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .attr('fill', 'white')
+                .attr('font-size', Math.min(radius / 3, 11) + 'px')
+                .attr('font-weight', '500')
+                .text(d.data.count);
+        }
+    });
 
     state.svg = svg;
     state.g = g;
-    state.xScale = xScale;
-    state.yScale = yScale;
 }
 
-function handleMouseOver(event, d) {
+function handleBubbleMouseOver(event, d) {
     const tooltip = document.getElementById('tooltip');
     tooltip.style.left = `${event.pageX + 15}px`;
     tooltip.style.top = `${event.pageY + 15}px`;
 
+    const insight = state.insights.clusterInsights[d.data.id] || {};
+
     tooltip.innerHTML = `
-        <div class="tooltip-cluster" style="background-color: ${CONFIG.colors[d.cluster % CONFIG.colors.length]}">
-            ${d.clusterLabel}
+        <div class="tooltip-cluster" style="background-color: ${d.data.color}">
+            ${d.data.label}
         </div>
-        <div class="tooltip-insight">
-            <span class="insight-tag">${d.questionType}</span>
-            <span class="insight-tag">${d.intent}</span>
+        <div class="tooltip-stats">
+            <div class="tooltip-stat">
+                <span class="stat-num">${d.data.count}</span>
+                <span class="stat-label">prompts</span>
+            </div>
+            <div class="tooltip-stat">
+                <span class="stat-num">${d.data.dominantQType}</span>
+                <span class="stat-label">style</span>
+            </div>
+            <div class="tooltip-stat">
+                <span class="stat-num">${d.data.avgComplexity}/5</span>
+                <span class="stat-label">complexity</span>
+            </div>
         </div>
-        <div class="tooltip-text">${truncateText(d.text, 100)}</div>
+        <div class="tooltip-hint">Click to see insights</div>
     `;
 
     tooltip.classList.add('visible');
-    d3.select(event.target).attr('r', 10).attr('opacity', 1);
+
+    // Highlight the bubble
+    d3.select(event.currentTarget).select('circle')
+        .transition()
+        .duration(200)
+        .attr('stroke-width', 4)
+        .attr('stroke-opacity', 1);
 }
 
-function handleMouseOut(event, d) {
+function handleBubbleMouseOut(event, d) {
     document.getElementById('tooltip').classList.remove('visible');
-    const isSelected = state.selectedCluster !== null && d.cluster !== state.selectedCluster;
-    d3.select(event.target).attr('r', 6).attr('opacity', isSelected ? 0.15 : 0.75);
+
+    d3.select(event.currentTarget).select('circle')
+        .transition()
+        .duration(200)
+        .attr('stroke-width', 2)
+        .attr('stroke-opacity', 0.5);
 }
 
-function handlePointClick(event, d) {
-    showPointInsight(d);
+function handleBubbleClick(event, d) {
+    selectCluster(d.data.id);
 }
 
 function showPointInsight(d) {
@@ -1010,7 +1109,7 @@ function showPointInsight(d) {
 
 function selectCluster(clusterId) {
     const clusterItems = document.querySelectorAll('.cluster-item');
-    const points = d3.selectAll('.point');
+    const bubbles = d3.selectAll('.bubble-group');
 
     if (state.selectedCluster === clusterId) {
         // Deselect - show all
@@ -1019,7 +1118,11 @@ function selectCluster(clusterId) {
             item.classList.remove('active');
             item.classList.remove('dimmed');
         });
-        points.attr('opacity', 0.75).classed('dimmed', false);
+        bubbles.select('circle')
+            .transition()
+            .duration(300)
+            .attr('opacity', 1)
+            .attr('stroke-opacity', 0.5);
     } else {
         // Select this cluster
         state.selectedCluster = clusterId;
@@ -1030,8 +1133,13 @@ function selectCluster(clusterId) {
             item.classList.toggle('dimmed', itemCluster !== clusterId);
         });
 
-        points.attr('opacity', d => d.cluster === clusterId ? 0.9 : 0.1)
-              .classed('dimmed', d => d.cluster !== clusterId);
+        // Highlight selected bubble, dim others
+        bubbles.select('circle')
+            .transition()
+            .duration(300)
+            .attr('opacity', d => d.data.id === clusterId ? 1 : 0.25)
+            .attr('stroke-opacity', d => d.data.id === clusterId ? 1 : 0.2)
+            .attr('stroke-width', d => d.data.id === clusterId ? 4 : 2);
 
         // Show cluster insight
         showClusterInsight(clusterId);
@@ -1096,14 +1204,11 @@ function setupResultsEventListeners() {
         }
     });
 
-    document.getElementById('zoom-in').addEventListener('click', () => state.svg.transition().call(state.zoom.scaleBy, 1.5));
-    document.getElementById('zoom-out').addEventListener('click', () => state.svg.transition().call(state.zoom.scaleBy, 0.67));
-    document.getElementById('zoom-reset').addEventListener('click', () => state.svg.transition().call(state.zoom.transform, d3.zoomIdentity));
 
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => { if (state.points.length > 0) createScatterPlot(); }, 250);
+        resizeTimeout = setTimeout(() => { if (state.points.length > 0) createBubbleChart(); }, 250);
     });
 }
 
