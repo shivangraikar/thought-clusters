@@ -150,13 +150,6 @@ python -m http.server 8000
 | **Styling** | CSS3 with custom properties |
 | **Hosting** | GitHub Pages (static) |
 
-### Why Browser-Based?
-
-- **Privacy**: Your conversations contain personal data. They never leave your device.
-- **No Backend**: No servers to maintain, no costs, no rate limits.
-- **Instant Access**: No signup required. API keys are optional.
-- **Transparent**: All code runs client-side - inspect it yourself.
-
 ---
 
 ## Privacy Guarantee
@@ -193,7 +186,6 @@ thought-clusters/
 ├── app.js                  # Processing, analysis & visualization
 ├── style.css               # Dark theme styling
 ├── README.md               # This file
-├── PUBLICATION_STARTER.md  # Research documentation
 └── scripts/
     └── process_conversations.py  # (Legacy) Python processor
 ```
