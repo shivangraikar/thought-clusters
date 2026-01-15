@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thought Clusters - Semantic Analysis of AI Conversations</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <p class="label">SEMANTIC ANALYSIS</p>
+            <h1>Thought Clusters</h1>
+            <p class="subtitle">An analysis of my AI conversation history using embeddings, clustering, and LLM labeling</p>
+        </header>
+
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-messages">--</div>
+                <div class="stat-label">Total Prompts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-clusters">--</div>
+                <div class="stat-label">Topic Clusters</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-chatgpt">--</div>
+                <div class="stat-label">ChatGPT</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-claude">--</div>
+                <div class="stat-label">Claude</div>
+            </div>
+        </div>
+
+        <div class="methodology">
+            <strong>Methodology</strong> &mdash; User prompts embedded with OpenAI text-embedding-3-small,
+            clustered with K-means, visualized in 2D with UMAP, and labeled by GPT-4o-mini.
+        </div>
+
+        <div class="main-content">
+            <div class="viz-section">
+                <h3 class="section-title">EMBEDDING SPACE</h3>
+                <div class="viz-container">
+                    <div id="scatter-plot"></div>
+                    <div class="tooltip" id="tooltip"></div>
+                </div>
+                <div id="legend" class="legend"></div>
+            </div>
+
+            <div class="distribution-section">
+                <h3 class="section-title">TOPIC DISTRIBUTION</h3>
+                <div id="bar-chart"></div>
+            </div>
+        </div>
+
+        <div class="detail-panel" id="detail-panel">
+            <div class="detail-header">
+                <h3 id="detail-title">Select a point to view details</h3>
+                <button class="close-btn" id="close-detail">&times;</button>
+            </div>
+            <div class="detail-content">
+                <div class="detail-meta" id="detail-meta"></div>
+                <div class="detail-text" id="detail-text"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with D3.js, OpenAI Embeddings, UMAP, and K-means clustering</p>
+            <p class="footer-link">
+                <a href="https://github.com/shivangraikar/thought-clusters" target="_blank">View on GitHub</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
