@@ -1108,12 +1108,12 @@ function setupModeSelection() {
 
             // Handle step visibility based on mode
             if (mode === 'api') {
-                // Show API key step, require validation before upload
+                // Show API key step, show locked upload
                 stepApiKey.classList.remove('hidden');
                 uploadStepBadge.textContent = 'Step 3';
                 uploadDisabled.classList.remove('hidden');
             } else {
-                // Hide API key step, enable upload directly
+                // Hide API key step, unlock upload directly
                 stepApiKey.classList.add('hidden');
                 uploadStepBadge.textContent = 'Step 2';
                 uploadDisabled.classList.add('hidden');
@@ -1177,6 +1177,7 @@ function setupModeSelection() {
                     apiKeyValidated = true;
                     validationStatus.textContent = '✓ Key validated successfully';
                     validationStatus.className = 'validation-status success';
+                    // Unlock the upload step
                     uploadDisabled.classList.add('hidden');
                 } else {
                     validationStatus.textContent = '✗ Invalid API key';
