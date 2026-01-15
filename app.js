@@ -741,6 +741,48 @@ function renderResults() {
     renderSourceBreakdown();
     createScatterPlot();
     setupResultsEventListeners();
+    showCacheInfoIfNeeded();
+}
+
+function showCacheInfoIfNeeded() {
+    const cacheInfo = document.getElementById('cache-info');
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
+
+    // Show cache info if Browser AI was used
+    if (state.insights.enhancedMode === 'webllm' || state.webllmReady) {
+        cacheInfo.classList.remove('hidden');
+
+        // Setup clear cache button
+        if (clearCacheBtn) {
+            clearCacheBtn.addEventListener('click', async () => {
+                try {
+                    // Clear WebLLM cache from Cache Storage
+                    const cacheNames = await caches.keys();
+                    for (const name of cacheNames) {
+                        if (name.includes('webllm') || name.includes('mlc') || name.includes('transformers')) {
+                            await caches.delete(name);
+                        }
+                    }
+
+                    // Reset state
+                    state.webllmEngine = null;
+                    state.webllmReady = false;
+
+                    // Update UI
+                    clearCacheBtn.textContent = '✓ Cleared!';
+                    clearCacheBtn.disabled = true;
+                    setTimeout(() => {
+                        cacheInfo.classList.add('hidden');
+                    }, 2000);
+                } catch (error) {
+                    console.error('Failed to clear cache:', error);
+                    clearCacheBtn.textContent = 'Failed';
+                }
+            });
+        }
+    } else {
+        cacheInfo.classList.add('hidden');
+    }
 }
 
 function renderInsightsSummary() {
@@ -1264,13 +1306,32 @@ async function loadWebLLM() {
     try {
         const { CreateMLCEngine } = await import('https://esm.run/@mlc-ai/web-llm');
 
+        let lastProgress = 0;
         state.webllmEngine = await CreateMLCEngine(CONFIG.webllmModel, {
             initProgressCallback: (progress) => {
+                // Progress text from WebLLM tells us what stage we're in
+                const progressText = progress.text || '';
                 const percent = Math.round(progress.progress * 100);
-                updateStatus(`Downloading AI model: ${percent}%`, 10 + percent * 0.3);
+
+                // Only update if progress increased (avoid flicker)
+                if (percent > lastProgress || progressText.includes('Loading')) {
+                    lastProgress = percent;
+
+                    if (progressText.includes('Loading model')) {
+                        // Model is loaded, now initializing
+                        updateStatus('Initializing AI model...', 40);
+                    } else if (percent >= 100) {
+                        // Download complete, but model still initializing
+                        updateStatus('Preparing AI model...', 38);
+                    } else {
+                        // Downloading - cap at 35% of overall progress
+                        updateStatus(`Downloading AI model: ${percent}%`, 10 + Math.min(percent * 0.25, 25));
+                    }
+                }
             }
         });
 
+        updateStatus('Browser AI ready!', 40);
         state.webllmReady = true;
         return state.webllmEngine;
     } catch (error) {
@@ -1286,7 +1347,7 @@ async function generateWithWebLLM(prompt) {
 
     const response = await state.webllmEngine.chat.completions.create({
         messages: [
-            { role: 'system', content: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful.' },
+            { role: 'system', content: 'You analyze conversation patterns. Be concise and insightful. Always address the person directly as "you/your", never say "the user".' },
             { role: 'user', content: prompt }
         ],
         max_tokens: 300,
@@ -1322,7 +1383,7 @@ async function callOpenAI(prompt) {
         body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-                { role: 'system', content: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful. Respond in 2-3 sentences max.' },
+                { role: 'system', content: 'You analyze conversation patterns. Be concise and insightful. Always address the person directly as "you/your", never say "the user". Respond in 2-3 sentences max.' },
                 { role: 'user', content: prompt }
             ],
             max_tokens: 200,
@@ -1356,7 +1417,7 @@ async function callAnthropic(prompt) {
             messages: [
                 { role: 'user', content: prompt }
             ],
-            system: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful. Respond in 2-3 sentences max.'
+            system: 'You analyze conversation patterns. Be concise and insightful. Always address the person directly as "you/your", never say "the user". Respond in 2-3 sentences max.'
         })
     });
 
@@ -1395,9 +1456,9 @@ async function generateEnhancedInsights(messages, clusters, labels) {
 
         const samplePrompts = messages.slice(0, 10).map(m => `"${m.text.substring(0, 100)}"`).join('\n');
 
-        const analysisPrompt = `Analyze this user's AI conversation patterns and provide personality insights:
+        const analysisPrompt = `Analyze these AI conversation patterns and provide personality insights. Address the person directly as "you/your":
 
-Topics they discuss most: ${topTopics}
+Topics discussed most: ${topTopics}
 Question types: ${topQTypes}
 Avg complexity: ${basicInsights.avgComplexity}/5
 Total prompts: ${basicInsights.totalPrompts}
@@ -1405,12 +1466,12 @@ Total prompts: ${basicInsights.totalPrompts}
 Sample prompts:
 ${samplePrompts}
 
-Based on this, describe their:
-1. Primary personality trait as an AI user (one creative name + one sentence)
-2. One surprising or interesting pattern you notice
-3. One actionable insight about how they could get more value from AI
+Describe:
+1. Your primary personality trait as an AI user (one creative name + one sentence about YOU)
+2. One surprising or interesting pattern in YOUR conversations
+3. One actionable insight about how YOU could get more value from AI
 
-Be specific, insightful, and slightly playful. Format as 3 short bullet points.`;
+Be specific, insightful, and slightly playful. Use "you/your" not "the user". Format as 3 short bullet points.`;
 
         let aiAnalysis;
         if (CONFIG.analysisMode === 'webllm') {
@@ -1448,12 +1509,12 @@ async function enhanceClusterInsights(insights, messages, labels) {
 
         const sampleTexts = clusterMsgs.slice(0, 5).map(m => m.text.substring(0, 80)).join('\n- ');
 
-        const prompt = `In 1-2 sentences, describe what this cluster of AI prompts reveals about the user's mindset/behavior:
+        const prompt = `In 1-2 sentences, describe what this cluster of prompts reveals about the person's mindset. Address them directly as "you/your":
 Topic: ${labels[clusterId]}
 Sample prompts:
 - ${sampleTexts}
 
-Be insightful and specific, not generic.`;
+Be insightful and specific. Use "you/your" not "the user".`;
 
         try {
             let narrative;
