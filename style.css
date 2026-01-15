@@ -980,6 +980,11 @@ body {
 ============================================ */
 
 @media (max-width: 900px) {
+    .insights-banner {
+        flex-direction: column;
+        gap: 16px;
+    }
+
     .results-layout {
         flex-direction: column;
     }
@@ -1002,6 +1007,14 @@ body {
 
     .cluster-item {
         flex: 0 0 auto;
+    }
+
+    .insight-stats {
+        gap: 20px;
+    }
+
+    .stat-value {
+        font-size: 20px;
     }
 }
 
@@ -1034,6 +1047,208 @@ body {
         bottom: 12px;
         right: 12px;
     }
+}
+
+/* ============================================
+   INSIGHTS BANNER
+============================================ */
+
+.insights-banner {
+    display: flex;
+    gap: 24px;
+    padding: 20px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.personality-section,
+.facts-section {
+    flex: 1;
+}
+
+.insights-banner h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+
+.personality-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.trait-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(6, 182, 212, 0.15));
+    border: 1px solid var(--border-color);
+    border-radius: 100px;
+    font-size: 13px;
+}
+
+.trait-icon {
+    font-size: 16px;
+}
+
+.trait-name {
+    font-weight: 500;
+}
+
+.fun-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fun-fact {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-1);
+}
+
+/* ============================================
+   SIDEBAR ENHANCEMENTS
+============================================ */
+
+.sidebar-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    margin-top: -8px;
+}
+
+.cluster-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ============================================
+   TOOLTIP ENHANCEMENTS
+============================================ */
+
+.tooltip-insight {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.insight-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ============================================
+   MODAL INSIGHT STYLES
+============================================ */
+
+.insight-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+}
+
+.insight-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.insight-label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.insight-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.original-prompt {
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.prompt-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.prompt-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+.cluster-insight-card {
+    text-align: center;
+}
+
+.insight-narrative {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(6, 182, 212, 0.1));
+    border-radius: var(--radius-lg);
+}
+
+.insight-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* ============================================
