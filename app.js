@@ -16,6 +16,7 @@
 
 const CONFIG = {
     embeddingModel: 'Xenova/all-MiniLM-L6-v2',
+    webllmModel: 'Phi-3-mini-4k-instruct-q4f16_1-MLC',
     minClusters: 4,
     maxClusters: 12,
     messagesPerCluster: 15,
@@ -24,29 +25,34 @@ const CONFIG = {
     minMessageLength: 15,
     maxMessages: 500,
 
+    // Analysis modes
+    analysisMode: 'basic', // 'basic', 'webllm', 'api'
+    apiProvider: 'openai', // 'openai', 'anthropic'
+    apiKey: null,
+
     colors: [
         '#f472b6', '#818cf8', '#34d399', '#fbbf24', '#f87171',
         '#38bdf8', '#a78bfa', '#4ade80', '#fb923c', '#e879f9',
         '#22d3ee', '#facc15', '#c084fc', '#fb7185', '#2dd4bf'
     ],
 
-    // Question type patterns
+    // Question type patterns - very flexible matching to catch common prompt styles
     questionPatterns: {
-        'How-to': /^(how (do|can|should|would|to)|show me how|help me|walk me through)/i,
-        'Explanation': /^(what (is|are|does|was)|explain|describe|tell me about|define)/i,
-        'Why': /^(why (is|are|do|does|did|would|should|can))/i,
-        'Debugging': /(error|bug|fix|issue|problem|doesn't work|not working|broken|fails|crash)/i,
-        'Creative': /(write|create|generate|come up with|brainstorm|ideas for|story|poem)/i,
-        'Opinion': /^(should i|what do you think|is it (good|bad|worth)|recommend|best way)/i,
-        'Comparison': /(vs|versus|difference between|compare|better|which one|or should)/i,
-        'Code Request': /(code|function|script|program|implement|algorithm|write a)/i,
+        'How-to': /(how (do|can|should|would|to|did|does|could|might)|show me|help me|walk me through|steps to|guide|tutorial|way to|setup|install|configure|build|make|get started)/i,
+        'Explanation': /(what (is|are|does|was|were|do|happens|would)|explain|describe|tell me|define|meaning|understand|clarify|elaborate|overview|summary|break down|eli5|mean by)/i,
+        'Why': /(why (is|are|do|does|did|would|should|can|won't|doesn't|isn't|am|was|were|not)|reason|cause|purpose|motivation|because)/i,
+        'Debugging': /(error|bug|fix|issue|problem|doesn't work|not working|broken|fails|crash|wrong|unexpected|strange|weird|failing|throwing|exception|undefined|null|NaN|invalid|incorrect)/i,
+        'Creative': /(write|create|generate|come up with|brainstorm|ideas|story|poem|draft|compose|design|make me|give me|produce|invent|imagine|creative|content)/i,
+        'Opinion': /(should i|what do you think|is it (good|bad|worth)|recommend|best|advice|suggest|opinion|thoughts|pros and cons|better|prefer|choice|pick|choose)/i,
+        'Comparison': /(vs\.?|versus|difference|compare|than|which (one|is|should|would)|or should|advantages|disadvantages|alternative|instead|over)/i,
+        'Code Request': /(code|function|script|program|implement|algorithm|snippet|example|syntax|class|method|api|endpoint|query|regex|sql|html|css|javascript|python|java|react|typescript)/i,
     },
 
     // Complexity indicators
     complexityIndicators: {
-        technical: /(api|algorithm|database|framework|architecture|deploy|config|async|recursive|optimization)/i,
-        conceptual: /(concept|theory|principle|paradigm|methodology|approach|strategy|philosophy)/i,
-        specific: /(\d+|specific|exactly|precisely|particular|this exact)/i,
+        technical: /(api|algorithm|database|framework|architecture|deploy|config|async|recursive|optimization|server|cloud|docker|kubernetes|aws|gcp|azure|microservice|authentication|authorization|encryption|cache|queue|websocket|graphql|rest|oauth|jwt|sql|nosql)/i,
+        conceptual: /(concept|theory|principle|paradigm|methodology|approach|strategy|philosophy|pattern|design|abstraction|inheritance|polymorphism|encapsulation|dependency|injection|middleware)/i,
+        specific: /(\d+|specific|exactly|precisely|particular|this exact|in my case|for my|my project|my code|my app)/i,
     }
 };
 
@@ -63,7 +69,9 @@ let state = {
     insights: {},
     selectedCluster: null,
     zoom: null,
-    pipeline: null
+    pipeline: null,
+    webllmEngine: null,
+    webllmReady: false
 };
 
 // ============================================
@@ -100,12 +108,13 @@ function analyzeComplexity(text) {
 function detectIntent(text) {
     const lower = text.toLowerCase();
 
-    if (/learn|understand|explain|what is|how does/i.test(lower)) return 'Learning';
-    if (/fix|error|bug|debug|issue|problem/i.test(lower)) return 'Problem-Solving';
-    if (/write|create|generate|make|build/i.test(lower)) return 'Creating';
-    if (/review|check|improve|better|optimize/i.test(lower)) return 'Improving';
-    if (/should|recommend|best|opinion|advice/i.test(lower)) return 'Deciding';
-    if (/brainstorm|ideas|suggest|possibilities/i.test(lower)) return 'Exploring';
+    // Order matters - more specific patterns first
+    if (/fix|error|bug|debug|issue|problem|crash|broken|wrong|fails|exception/i.test(lower)) return 'Problem-Solving';
+    if (/write|create|generate|make|build|compose|draft|design|implement|develop/i.test(lower)) return 'Creating';
+    if (/review|check|improve|better|optimize|refactor|enhance|upgrade|clean/i.test(lower)) return 'Improving';
+    if (/should|recommend|best|opinion|advice|choose|pick|decide|which|versus|vs/i.test(lower)) return 'Deciding';
+    if (/brainstorm|ideas|suggest|possibilities|alternatives|options|ways|approaches/i.test(lower)) return 'Exploring';
+    if (/learn|understand|explain|what|how|why|meaning|concept|theory|define|describe/i.test(lower)) return 'Learning';
 
     return 'General';
 }
@@ -191,19 +200,45 @@ function generateInsights(messages, clusters, labels) {
 }
 
 function generateClusterNarrative(qType, intent, count, label) {
-    const narratives = {
-        'How-to': `You're a hands-on learner here - ${count} prompts asking "how" to do things.`,
-        'Explanation': `Curious mind alert! You love understanding the "what" and "why" behind ${label.toLowerCase()}.`,
-        'Why': `Deep thinker mode - you don't just accept things, you question the reasoning.`,
-        'Debugging': `Problem solver in action! You're actively building and fixing things.`,
-        'Creative': `Your creative side shines here - generating and creating new content.`,
-        'Opinion': `Decision maker - you value AI's perspective when making choices.`,
-        'Comparison': `Analytical approach - you like weighing options before committing.`,
-        'Code Request': `Builder mode activated - turning ideas into working code.`,
-        'General': `Versatile explorer - a mix of questions showing broad curiosity.`,
+    // More specific narratives based on question type
+    const typeNarratives = {
+        'How-to': `Hands-on learner mode! You asked "how" ${count} times about ${label.toLowerCase()}.`,
+        'Explanation': `Knowledge seeker! You love diving deep into what ${label.toLowerCase()} really means.`,
+        'Why': `Critical thinker - you question the "why" behind ${label.toLowerCase()}, not just the "what".`,
+        'Debugging': `Active builder! You're in the trenches fixing and solving ${label.toLowerCase()} issues.`,
+        'Creative': `Creator energy! You're generating and producing ${label.toLowerCase()} content.`,
+        'Opinion': `Decision maker - you tap AI for guidance on ${label.toLowerCase()} choices.`,
+        'Comparison': `Analyst mode - weighing options and alternatives for ${label.toLowerCase()}.`,
+        'Code Request': `Developer zone! Turning ${label.toLowerCase()} concepts into working code.`,
     };
 
-    return narratives[qType] || narratives['General'];
+    // Fallback narratives based on intent if qType is General
+    const intentNarratives = {
+        'Learning': `Knowledge hunter! ${count} questions exploring ${label.toLowerCase()} concepts.`,
+        'Problem-Solving': `Troubleshooter mode! Tackling ${label.toLowerCase()} challenges head-on.`,
+        'Creating': `Maker mindset! Building and creating in the ${label.toLowerCase()} space.`,
+        'Improving': `Perfectionist vibes! Refining and enhancing your ${label.toLowerCase()} work.`,
+        'Deciding': `Strategic thinker! Seeking clarity on ${label.toLowerCase()} decisions.`,
+        'Exploring': `Curious explorer! Brainstorming ideas around ${label.toLowerCase()}.`,
+    };
+
+    // Use type narrative if available and not General
+    if (qType !== 'General' && typeNarratives[qType]) {
+        return typeNarratives[qType];
+    }
+
+    // Fall back to intent narrative
+    if (intent !== 'General' && intentNarratives[intent]) {
+        return intentNarratives[intent];
+    }
+
+    // Final fallback with more variety
+    const generalVariations = [
+        `Mixed bag explorer - ${count} diverse questions about ${label.toLowerCase()}.`,
+        `Wide-ranging curiosity about ${label.toLowerCase()} - you cover all angles!`,
+        `Versatile questioner - exploring ${label.toLowerCase()} from multiple perspectives.`,
+    ];
+    return generalVariations[count % generalVariations.length];
 }
 
 function derivePersonalityTraits(insights) {
@@ -681,7 +716,7 @@ async function processConversations(data) {
 
         updateStatus('Generating your AI personality profile...', 90);
         await new Promise(r => setTimeout(r, 50));
-        state.insights = generateInsights(state.messages, state.clusters, clusterLabels);
+        state.insights = await generateEnhancedInsights(state.messages, state.clusters, clusterLabels);
 
         updateStatus('Rendering insights...', 95);
         await new Promise(r => setTimeout(r, 50));
@@ -723,13 +758,51 @@ function renderInsightsSummary() {
         `).join('');
     }
 
-    // Render fun facts
+    // Render fun facts (or AI analysis if available)
     const factsContainer = document.getElementById('fun-facts');
     if (factsContainer) {
-        factsContainer.innerHTML = state.insights.funFacts.map(f => `
-            <div class="fun-fact">${f}</div>
-        `).join('');
+        let content = '';
+
+        // Show fallback notice if we fell back to basic
+        if (state.insights.fallbackToBasic) {
+            content += `
+                <div class="fallback-notice visible">
+                    ⚠️ ${state.insights.fallbackReason}
+                </div>
+            `;
+        }
+
+        if (state.insights.aiAnalysis) {
+            // Show AI-generated analysis
+            const modeLabel = state.insights.enhancedMode === 'webllm' ? '🧠 Browser AI' : '🔑 API';
+            content += `
+                <div class="ai-analysis-badge">${modeLabel} Analysis</div>
+                <div class="ai-analysis">${formatAIAnalysis(state.insights.aiAnalysis)}</div>
+            `;
+        } else {
+            // Basic mode or fallback - show fun facts
+            content += state.insights.funFacts.map(f => `
+                <div class="fun-fact">${f}</div>
+            `).join('');
+        }
+
+        factsContainer.innerHTML = content;
     }
+}
+
+function formatAIAnalysis(text) {
+    // Format bullet points nicely
+    return text
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+            const cleaned = line.replace(/^[\d\.\-\*]+\s*/, '').trim();
+            if (cleaned) {
+                return `<div class="ai-insight-item">${cleaned}</div>`;
+            }
+            return '';
+        })
+        .join('');
 }
 
 function renderClusterList() {
@@ -933,9 +1006,14 @@ function showClusterInsight(clusterId) {
     document.getElementById('modal-cluster').textContent = cluster.label;
     document.getElementById('modal-cluster').style.backgroundColor = CONFIG.colors[clusterId % CONFIG.colors.length];
 
+    // Use AI narrative if available, otherwise fall back to basic
+    const narrative = insight.aiNarrative || insight.insight;
+    const narrativeClass = insight.aiNarrative ? 'insight-narrative ai-enhanced' : 'insight-narrative';
+
     document.getElementById('modal-text').innerHTML = `
         <div class="cluster-insight-card">
-            <div class="insight-narrative">${insight.insight}</div>
+            ${insight.aiNarrative ? '<div class="ai-badge">✨ AI Analysis</div>' : ''}
+            <div class="${narrativeClass}">${narrative}</div>
             <div class="insight-stats">
                 <div class="stat-item">
                     <span class="stat-value">${insight.count}</span>
@@ -993,9 +1071,408 @@ function truncateText(text, maxLength) {
 }
 
 // ============================================
+// MODE SELECTION & AI INTEGRATIONS
+// ============================================
+
+function setupModeSelection() {
+    const modeOptions = document.querySelectorAll('.mode-option');
+    const stepApiKey = document.getElementById('step-apikey');
+    const uploadStepBadge = document.getElementById('upload-step-badge');
+    const uploadDisabled = document.getElementById('upload-disabled');
+    const providerOptions = document.querySelectorAll('.provider-option');
+    const apiKeyInput = document.getElementById('api-key');
+    const toggleVisibility = document.getElementById('toggle-key-visibility');
+    const validateBtn = document.getElementById('validate-key-btn');
+    const validationStatus = document.getElementById('validation-status');
+
+    // Track if key has been validated (used for UI state)
+    // eslint-disable-next-line no-unused-vars
+    let apiKeyValidated = false;
+
+    // Mode selection
+    modeOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const mode = option.dataset.mode;
+            CONFIG.analysisMode = mode;
+
+            // Update active states
+            modeOptions.forEach(o => o.classList.remove('active'));
+            option.classList.add('active');
+
+            // Reset validation state
+            apiKeyValidated = false;
+            if (validationStatus) {
+                validationStatus.textContent = '';
+                validationStatus.className = 'validation-status';
+            }
+
+            // Handle step visibility based on mode
+            if (mode === 'api') {
+                // Show API key step, require validation before upload
+                stepApiKey.classList.remove('hidden');
+                uploadStepBadge.textContent = 'Step 3';
+                uploadDisabled.classList.remove('hidden');
+            } else {
+                // Hide API key step, enable upload directly
+                stepApiKey.classList.add('hidden');
+                uploadStepBadge.textContent = 'Step 2';
+                uploadDisabled.classList.add('hidden');
+
+                // Check WebGPU support for Browser AI
+                if (mode === 'webllm') {
+                    checkWebGPUSupport();
+                }
+            }
+        });
+    });
+
+    // Provider selection
+    providerOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            providerOptions.forEach(o => o.classList.remove('active'));
+            option.classList.add('active');
+            CONFIG.apiProvider = option.querySelector('input').value;
+            // Reset validation when provider changes
+            apiKeyValidated = false;
+            if (validationStatus) {
+                validationStatus.textContent = '';
+                validationStatus.className = 'validation-status';
+            }
+            uploadDisabled.classList.remove('hidden');
+        });
+    });
+
+    // API key input
+    if (apiKeyInput) {
+        apiKeyInput.addEventListener('input', (e) => {
+            CONFIG.apiKey = e.target.value.trim();
+            // Reset validation when key changes
+            apiKeyValidated = false;
+            if (validationStatus) {
+                validationStatus.textContent = '';
+                validationStatus.className = 'validation-status';
+            }
+            uploadDisabled.classList.remove('hidden');
+        });
+    }
+
+    // Validate button
+    if (validateBtn) {
+        validateBtn.addEventListener('click', async () => {
+            if (!CONFIG.apiKey) {
+                validationStatus.textContent = '✗ Please enter an API key';
+                validationStatus.className = 'validation-status error';
+                return;
+            }
+
+            // Show loading state
+            validateBtn.disabled = true;
+            validateBtn.classList.add('loading');
+            validationStatus.textContent = 'Validating...';
+            validationStatus.className = 'validation-status loading';
+
+            try {
+                const isValid = await validateApiKey();
+                if (isValid) {
+                    apiKeyValidated = true;
+                    validationStatus.textContent = '✓ Key validated successfully';
+                    validationStatus.className = 'validation-status success';
+                    uploadDisabled.classList.add('hidden');
+                } else {
+                    validationStatus.textContent = '✗ Invalid API key';
+                    validationStatus.className = 'validation-status error';
+                }
+            } catch (error) {
+                validationStatus.textContent = `✗ ${error.message}`;
+                validationStatus.className = 'validation-status error';
+            } finally {
+                validateBtn.disabled = false;
+                validateBtn.classList.remove('loading');
+            }
+        });
+    }
+
+    // Toggle visibility
+    if (toggleVisibility) {
+        toggleVisibility.addEventListener('click', () => {
+            const input = document.getElementById('api-key');
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggleVisibility.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                toggleVisibility.textContent = '👁';
+            }
+        });
+    }
+}
+
+async function validateApiKey() {
+    // Test the API key with a minimal request
+    if (CONFIG.apiProvider === 'openai') {
+        const response = await fetch('https://api.openai.com/v1/models', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${CONFIG.apiKey}`
+            }
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'Invalid OpenAI API key');
+        }
+        return true;
+    } else {
+        // For Anthropic, we need to make a minimal completion request
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': CONFIG.apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 1,
+                messages: [{ role: 'user', content: 'Hi' }]
+            })
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'Invalid Anthropic API key');
+        }
+        return true;
+    }
+}
+
+function checkWebGPUSupport() {
+    if (!navigator.gpu) {
+        alert('⚠️ Browser AI requires WebGPU which is not available in your browser.\n\nPlease use:\n• Chrome 113+ or Edge 113+\n• A device with a compatible GPU\n\nAlternatively, try the API Key mode for best results.');
+    }
+}
+
+// ============================================
+// WEBLLM INTEGRATION
+// ============================================
+
+async function loadWebLLM() {
+    if (state.webllmReady) return state.webllmEngine;
+
+    updateStatus('Loading Browser AI model (~2GB download, please wait)...', 10);
+
+    try {
+        const { CreateMLCEngine } = await import('https://esm.run/@mlc-ai/web-llm');
+
+        state.webllmEngine = await CreateMLCEngine(CONFIG.webllmModel, {
+            initProgressCallback: (progress) => {
+                const percent = Math.round(progress.progress * 100);
+                updateStatus(`Downloading AI model: ${percent}%`, 10 + percent * 0.3);
+            }
+        });
+
+        state.webllmReady = true;
+        return state.webllmEngine;
+    } catch (error) {
+        console.error('WebLLM loading failed:', error);
+        throw new Error('Browser AI not supported. Try Chrome with a good GPU, or use API Key mode.');
+    }
+}
+
+async function generateWithWebLLM(prompt) {
+    if (!state.webllmEngine) {
+        await loadWebLLM();
+    }
+
+    const response = await state.webllmEngine.chat.completions.create({
+        messages: [
+            { role: 'system', content: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful.' },
+            { role: 'user', content: prompt }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+    });
+
+    return response.choices[0].message.content;
+}
+
+// ============================================
+// API KEY INTEGRATION
+// ============================================
+
+async function generateWithAPI(prompt) {
+    if (!CONFIG.apiKey) {
+        throw new Error('Please enter your API key');
+    }
+
+    if (CONFIG.apiProvider === 'openai') {
+        return await callOpenAI(prompt);
+    } else {
+        return await callAnthropic(prompt);
+    }
+}
+
+async function callOpenAI(prompt) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful. Respond in 2-3 sentences max.' },
+                { role: 'user', content: prompt }
+            ],
+            max_tokens: 200,
+            temperature: 0.7
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'OpenAI API error');
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+async function callAnthropic(prompt) {
+    // Note: Anthropic API requires server-side proxy due to CORS
+    // For browser use, we'll use a workaround or show instructions
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': CONFIG.apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 200,
+            messages: [
+                { role: 'user', content: prompt }
+            ],
+            system: 'You are a helpful assistant that analyzes conversation patterns. Be concise and insightful. Respond in 2-3 sentences max.'
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Anthropic API error');
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+}
+
+// ============================================
+// ENHANCED INSIGHT GENERATION
+// ============================================
+
+async function generateEnhancedInsights(messages, clusters, labels) {
+    // First generate basic insights
+    const basicInsights = generateInsights(messages, clusters, labels);
+
+    if (CONFIG.analysisMode === 'basic') {
+        return basicInsights;
+    }
+
+    // For WebLLM or API modes, enhance with AI-generated insights
+    try {
+        updateStatus('Generating AI-powered personality insights...', 85);
+
+        // Prepare summary for AI
+        const topTopics = clusters.slice(0, 5).map(c => c.label).join(', ');
+        const topQTypes = Object.entries(basicInsights.questionTypes)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([type, count]) => `${type} (${count})`)
+            .join(', ');
+
+        const samplePrompts = messages.slice(0, 10).map(m => `"${m.text.substring(0, 100)}"`).join('\n');
+
+        const analysisPrompt = `Analyze this user's AI conversation patterns and provide personality insights:
+
+Topics they discuss most: ${topTopics}
+Question types: ${topQTypes}
+Avg complexity: ${basicInsights.avgComplexity}/5
+Total prompts: ${basicInsights.totalPrompts}
+
+Sample prompts:
+${samplePrompts}
+
+Based on this, describe their:
+1. Primary personality trait as an AI user (one creative name + one sentence)
+2. One surprising or interesting pattern you notice
+3. One actionable insight about how they could get more value from AI
+
+Be specific, insightful, and slightly playful. Format as 3 short bullet points.`;
+
+        let aiAnalysis;
+        if (CONFIG.analysisMode === 'webllm') {
+            aiAnalysis = await generateWithWebLLM(analysisPrompt);
+        } else {
+            aiAnalysis = await generateWithAPI(analysisPrompt);
+        }
+
+        // Add AI insights to the basic insights
+        basicInsights.aiAnalysis = aiAnalysis;
+        basicInsights.enhancedMode = CONFIG.analysisMode;
+
+        // Generate AI-powered cluster narratives
+        await enhanceClusterInsights(basicInsights, messages, labels);
+
+    } catch (error) {
+        console.error('AI enhancement failed:', error);
+        // Set fallback flag to show user we fell back to basic
+        basicInsights.fallbackToBasic = true;
+        basicInsights.fallbackReason = CONFIG.analysisMode === 'api'
+            ? `API key error: ${error.message}. Showing results using basic semantic analysis.`
+            : `Browser AI error: ${error.message}. Showing results using basic semantic analysis.`;
+    }
+
+    return basicInsights;
+}
+
+async function enhanceClusterInsights(insights, messages, labels) {
+    // Only enhance top 5 clusters to save API calls/time
+    const clusterIds = Object.keys(insights.clusterInsights).slice(0, 5);
+
+    for (const clusterId of clusterIds) {
+        const clusterMsgs = messages.filter((_m, i) => state.points[i]?.cluster === parseInt(clusterId));
+        if (clusterMsgs.length < 3) continue;
+
+        const sampleTexts = clusterMsgs.slice(0, 5).map(m => m.text.substring(0, 80)).join('\n- ');
+
+        const prompt = `In 1-2 sentences, describe what this cluster of AI prompts reveals about the user's mindset/behavior:
+Topic: ${labels[clusterId]}
+Sample prompts:
+- ${sampleTexts}
+
+Be insightful and specific, not generic.`;
+
+        try {
+            let narrative;
+            if (CONFIG.analysisMode === 'webllm') {
+                narrative = await generateWithWebLLM(prompt);
+            } else {
+                narrative = await generateWithAPI(prompt);
+            }
+            insights.clusterInsights[clusterId].aiNarrative = narrative;
+        } catch (e) {
+            // Silently fail for individual clusters, keep basic narrative
+        }
+    }
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     setupUpload();
+    setupModeSelection();
 });
