@@ -851,8 +851,27 @@ function renderClusterList() {
     const container = document.getElementById('cluster-list');
     container.innerHTML = '';
 
-    state.clusters.forEach(cluster => {
-        const insight = state.insights.clusterInsights[cluster.id] || {};
+    // Show top 3 clusters as a quick summary, rest shown in bubbles
+    const topClusters = state.clusters.slice(0, 3);
+
+    // Add summary header
+    const summaryHeader = document.createElement('div');
+    summaryHeader.className = 'cluster-summary-header';
+    summaryHeader.innerHTML = `
+        <div class="summary-stat">
+            <span class="summary-value">${state.clusters.length}</span>
+            <span class="summary-label">topics discovered</span>
+        </div>
+    `;
+    container.appendChild(summaryHeader);
+
+    // Show top clusters
+    const topLabel = document.createElement('div');
+    topLabel.className = 'top-clusters-label';
+    topLabel.textContent = 'Your top interests:';
+    container.appendChild(topLabel);
+
+    topClusters.forEach(cluster => {
         const item = document.createElement('div');
         item.className = 'cluster-item';
         item.dataset.cluster = cluster.id;
@@ -861,14 +880,21 @@ function renderClusterList() {
             <div class="cluster-dot" style="background-color: ${CONFIG.colors[cluster.id % CONFIG.colors.length]}"></div>
             <div class="cluster-info">
                 <div class="cluster-label">${cluster.label}</div>
-                <div class="cluster-meta">${cluster.count} prompts • ${insight.dominantIntent || 'General'}</div>
+                <div class="cluster-meta">${cluster.count} prompts</div>
             </div>
         `;
 
         item.addEventListener('click', () => selectCluster(cluster.id));
-
         container.appendChild(item);
     });
+
+    // Add hint if more clusters exist
+    if (state.clusters.length > 3) {
+        const hint = document.createElement('div');
+        hint.className = 'more-clusters-hint';
+        hint.textContent = `+ ${state.clusters.length - 3} more topics in the bubbles`;
+        container.appendChild(hint);
+    }
 }
 
 function renderSourceBreakdown() {
@@ -1014,11 +1040,16 @@ function createBubbleChart() {
 }
 
 function handleBubbleMouseOver(event, d) {
-    const tooltip = document.getElementById('tooltip');
-    tooltip.style.left = `${event.pageX + 15}px`;
-    tooltip.style.top = `${event.pageY + 15}px`;
+    // Don't show tooltip if a cluster is already selected (showing modal)
+    if (state.selectedCluster !== null) return;
 
-    const insight = state.insights.clusterInsights[d.data.id] || {};
+    const tooltip = document.getElementById('tooltip');
+
+    // Position tooltip near mouse but ensure it stays in viewport
+    const x = Math.min(event.pageX + 15, window.innerWidth - 350);
+    const y = Math.min(event.pageY + 15, window.innerHeight - 200);
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
 
     tooltip.innerHTML = `
         <div class="tooltip-cluster" style="background-color: ${d.data.color}">
@@ -1043,10 +1074,8 @@ function handleBubbleMouseOver(event, d) {
 
     tooltip.classList.add('visible');
 
-    // Highlight the bubble
+    // Simple highlight without transition (prevents glitch)
     d3.select(event.currentTarget).select('circle')
-        .transition()
-        .duration(200)
         .attr('stroke-width', 4)
         .attr('stroke-opacity', 1);
 }
@@ -1054,15 +1083,23 @@ function handleBubbleMouseOver(event, d) {
 function handleBubbleMouseOut(event, d) {
     document.getElementById('tooltip').classList.remove('visible');
 
-    d3.select(event.currentTarget).select('circle')
-        .transition()
-        .duration(200)
-        .attr('stroke-width', 2)
-        .attr('stroke-opacity', 0.5);
+    // Only reset if not selected
+    if (state.selectedCluster !== d.data.id) {
+        d3.select(event.currentTarget).select('circle')
+            .attr('stroke-width', 2)
+            .attr('stroke-opacity', 0.5);
+    }
 }
 
 function handleBubbleClick(event, d) {
-    selectCluster(d.data.id);
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Hide tooltip immediately on click
+    document.getElementById('tooltip').classList.remove('visible');
+
+    const clusterId = d.data.id;
+    selectCluster(clusterId);
 }
 
 function showPointInsight(d) {
