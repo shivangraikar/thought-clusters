@@ -160,16 +160,6 @@ thought-clusters/
 
 ---
 
-## For Researchers
-
-See [PUBLICATION_STARTER.md](PUBLICATION_STARTER.md) for:
-- Research questions and hypotheses
-- Technical methodology documentation
-- Experimental design suggestions
-- Citation templates
-
----
-
 ## Contributing
 
 1. Fork the repository
