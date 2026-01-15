@@ -28,5 +28,4 @@ exports/
 .DS_Store
 Thumbs.db
 
-# Don't ignore the sample data
-!data/clusters.json
+PUBLICATION_STARTER.md
